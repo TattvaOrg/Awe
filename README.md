@@ -78,7 +78,7 @@ Ensure the following packages are installed on your Linux system:
 Clone this repository into your Quickshell configuration directory:
 
 ```bash
-git clone https://github.com/AbsolOrg/Awe.git ~/.config/quickshell/Awe
+git clone https://github.com/TattvaOrg/Awe.git ~/.config/quickshell/Awe
 ```
 
 Launch the shell:
