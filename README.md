@@ -95,7 +95,7 @@ awe start
 
 ---
 
-## 🎛️ Awe CLI & Rich Settings Panel
+## Awe CLI & Rich Settings Panel
 
 Awe comes with a native executable CLI companion and a dedicated luxury dark Settings Control Center:
 
