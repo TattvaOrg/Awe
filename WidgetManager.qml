@@ -7,10 +7,36 @@ Item {
     property real screenWidth: 1920
     property real screenHeight: 1080
 
-    // Top centered floating pill / notch
-    x: Math.round((screenWidth - width) / 2)
-    y: 10
-    width: isExpanded ? 390 : 180
+    // Configurable pill position & custom text
+    property string pillPosition: "top_center" // top_center, top_left, top_right, bottom_center, bottom_left, bottom_right
+    property string pillText: "Awe Widgets"
+    property bool showPill: true
+
+    visible: showPill
+
+    x: {
+        switch (pillPosition) {
+            case "top_left":
+            case "bottom_left":
+                return 24
+            case "top_right":
+            case "bottom_right":
+                return Math.round(screenWidth - width - 24)
+            case "bottom_center":
+            case "top_center":
+            default:
+                return Math.round((screenWidth - width) / 2)
+        }
+    }
+
+    y: {
+        if (pillPosition && pillPosition.indexOf("bottom") !== -1) {
+            return Math.round(screenHeight - height - 12)
+        }
+        return 12
+    }
+
+    width: isExpanded ? 390 : Math.max(160, pillContentRow.implicitWidth + 30)
     height: isExpanded ? 410 : 34
     z: 999
 
@@ -53,9 +79,24 @@ Item {
             onStreamFinished: {
                 try {
                     var data = JSON.parse(text)
-                    if (data.manager && data.manager.visibility !== undefined) {
-                        var vis = Object.assign({}, root.widgetVisibility, data.manager.visibility)
-                        root.widgetVisibility = vis
+                    if (data.manager) {
+                        if (data.manager.visibility !== undefined) {
+                            var rawVis = data.manager.visibility
+                            if (rawVis.visibility !== undefined) {
+                                rawVis = rawVis.visibility
+                            }
+                            var vis = Object.assign({}, root.widgetVisibility, rawVis)
+                            root.widgetVisibility = vis
+                        }
+                        if (data.manager.position !== undefined) {
+                            root.pillPosition = data.manager.position
+                        }
+                        if (data.manager.pillText !== undefined && data.manager.pillText !== "") {
+                            root.pillText = data.manager.pillText
+                        }
+                        if (data.manager.showPill !== undefined) {
+                            root.showPill = data.manager.showPill
+                        }
                     }
                 } catch (e) {}
             }
@@ -67,24 +108,46 @@ Item {
         running: false
     }
 
+    Timer {
+        id: saveDebounceTimer
+        interval: 60
+        repeat: false
+        onTriggered: {
+            var visJson = JSON.stringify(root.widgetVisibility)
+            var posStr = JSON.stringify(root.pillPosition)
+            var textStr = JSON.stringify(root.pillText)
+            var showStr = root.showPill ? "True" : "False"
+            var pyScript = "import json, os; p=os.path.expanduser('~/.config/quickshell/widget_settings.json'); d=json.load(open(p)) if os.path.exists(p) else {}; m=d.setdefault('manager', {}); m['visibility']=json.loads(" + JSON.stringify(visJson) + "); m['position']=" + posStr + "; m['pillText']=" + textStr + "; m['showPill']=" + showStr + "; open(p,'w').write(json.dumps(d,indent=2))"
+            saveSettingsProc.command = ["python3", "-c", pyScript]
+            saveSettingsProc.running = true
+        }
+    }
+
     function saveSettings() {
-        var jsonStr = JSON.stringify({
-            visibility: root.widgetVisibility
-        }).replace(/'/g, "'\\''")
-        var script = "python3 -c 'import json, os; p=os.path.expanduser(\"~/.config/quickshell/widget_settings.json\"); d=json.load(open(p)) if os.path.exists(p) else {}; d.setdefault(\"manager\", {})[\"visibility\"]=" + jsonStr + "; open(p,\"w\").write(json.dumps(d,indent=2))'"
-        saveSettingsProc.command = ["sh", "-c", script]
-        saveSettingsProc.running = true
+        saveDebounceTimer.restart()
     }
 
     function toggleWidget(name) {
         var vis = Object.assign({}, root.widgetVisibility)
-        vis[name] = !vis[name]
+        vis[name] = (vis[name] === false) ? true : false
         root.widgetVisibility = vis
-        root.saveSettings()
+        saveDebounceTimer.restart()
     }
 
     Component.onCompleted: {
         loadSettingsProc.running = true
+    }
+
+    // Watcher to keep widget visibility in sync when toggled externally or from Awe settings
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: {
+            if (!saveDebounceTimer.running && !loadSettingsProc.running && !saveSettingsProc.running) {
+                loadSettingsProc.running = true
+            }
+        }
     }
 
     // Dynamic Theme Palette from Theme singleton
@@ -132,15 +195,16 @@ Item {
                 antialiasing: true
 
                 Row {
+                    id: pillContentRow
                     anchors.centerIn: parent
                     spacing: 8
 
                     // Active Green Indicator Dot
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 7
-                        height: 7
-                        radius: 3.5
+                        width: 6
+                        height: 6
+                        radius: 3
                         color: root.colAccentGreen
                         antialiasing: true
                     }
@@ -148,7 +212,7 @@ Item {
                     // Notch Title Label
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: root.isExpanded ? "Desktop Widgets & Themes" : "Awe Widgets"
+                        text: root.isExpanded ? (root.pillText + " • Settings") : root.pillText
                         color: root.colTextPrimary
                         font.pixelSize: 11
                         font.bold: true
@@ -234,10 +298,11 @@ Item {
                                     anchors.centerIn: parent
                                     spacing: 5
 
-                                    Text {
+                                    AweIcon {
+                                        name: modelData.icon || "palette"
+                                        size: 11
+                                        color: (Theme.currentTheme === modelData.id) ? root.colAccent : root.colTextSecondary
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: modelData.icon
-                                        font.pixelSize: 11
                                     }
 
                                     Text {
@@ -335,7 +400,7 @@ Item {
                                 Rectangle {
                                     width: (widgetGrid.width - 6) / 2
                                     height: 28
-                                    radius: 14
+                                    radius: 6
                                     color: (root.widgetVisibility[modelData.id] !== false) ? root.colPillBg : "#12FFFFFF"
                                     border.color: (root.widgetVisibility[modelData.id] !== false) ? root.colAccent : "#1AFFFFFF"
                                     border.width: 1
@@ -368,6 +433,7 @@ Item {
 
                                     MouseArea {
                                         anchors.fill: parent
+                                        preventStealing: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: root.toggleWidget(modelData.id)
                                     }

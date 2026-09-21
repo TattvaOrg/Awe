@@ -73,28 +73,88 @@ Ensure the following packages are installed on your Linux system:
 - **curl** (for crypto and weather updates)
 - **iputils** (for network ping latency)
 
-### Launching
+### Launching & Setup
 
 Clone this repository into your Quickshell configuration directory:
 
 ```bash
 git clone https://github.com/AbsolOrg/Awe.git ~/.config/quickshell/Awe
+cd ~/.config/quickshell/Awe
+./install.sh
 ```
 
-Launch the shell:
+Run `awe` in your terminal to open the rich Settings Panel, or start the desktop widgets immediately:
 
 ```bash
-quickshell -p ~/.config/quickshell/Awe
+# Launch the rich black Settings GUI panel
+awe
+
+# Start desktop widgets in the background
+awe start
+```
+
+---
+
+## 🎛️ Awe CLI & Rich Settings Panel
+
+Awe comes with a native executable CLI companion and a dedicated luxury dark Settings Control Center:
+
+- **Rich Dark Settings Panel (`awe` or `awe gui`)**:
+  - **Themes & Aesthetics**: Visual gallery and one-click switcher featuring **System Dynamic** (automatic Material 3 palette extraction from active desktop wallpaper via Matugen) along with 10 handcrafted presets (*Liquid Glass*, *Transparent*, *Material 3*, *Cyberpunk*, *Nordic Frost*, *OLED Black*, *Warm Latte*, *Tokyo Night*, *Evergreen*, and *Aurora Prism*). The settings panel itself remains in a fixed, unified luxury obsidian black theme.
+  - **Widget Manager**: Enable / disable toggles for all 24 widgets with real-time reactive desktop updates and search filtering. Widgets can also be toggled directly from the expanded desktop pill.
+  - **Awe Toggle Pill**: Configure screen position (top center, top left, top right, bottom center, bottom left, bottom right), custom label text, and visibility toggle.
+  - **Widget Tweaks**: Per-widget customizations (Clock styles, Poster frame shapes, Visualizer modes, Crypto coins, Network IP masking).
+  - **Layout & Scaling**: Global scaling slider (0.5x – 1.5x) and one-click factory layout reset.
+  - **Daemon & Startup**: Process supervisor (Start, Stop, Restart Awe) and toggle autostart on desktop login.
+
+- **CLI Commands**:
+
+```bash
+awe                          # Open rich Settings GUI panel
+awe start                    # Start desktop widgets in background
+awe stop                     # Stop running desktop widgets
+awe restart                  # Restart Awe desktop widgets
+awe status                   # Show status, active theme, and enabled widgets
+awe theme [name]             # View or switch active theme (e.g. awe theme system, awe theme cyberpunk)
+awe wallpaper-sync [path]    # Extract Material 3 colors from wallpaper via Matugen
+awe list                     # List all 24 widgets and visibility states
+awe toggle <widget>          # Toggle a widget on/off (e.g. awe toggle clock)
+awe enable <widget>          # Enable a widget explicitly
+awe disable <widget>         # Disable a widget explicitly
+awe pill [pos]               # Set desktop pill position (top_center, bottom_center, etc.)
+awe pill-text [text]         # Set custom text on desktop pill (e.g. awe pill-text "✦ Widgets")
+awe pill-toggle              # Show or hide desktop pill completely
+awe scale <value>            # Adjust master scale factor (e.g. awe scale 0.85)
+awe autostart [on|off]       # Toggle autostart on user login
+awe install                  # Symlink awe to ~/.local/bin/awe and install desktop entry
+awe uninstall                # Remove awe binary symlink and desktop entry
 ```
 
 ---
 
 ## Configuration
 
-Widget positions and scale factors are stored automatically in:
+Widget positions, scale factors, theme palettes, and visibility states are stored automatically in:
 
 ```
 ~/.config/quickshell/widget_settings.json
 ```
 
-To reset all widgets to their default layout, delete or edit this file.
+---
+
+## Credits & Acknowledgments
+
+Awe is built upon and inspired by phenomenal open-source projects across the Linux desktop ecosystem:
+
+- **[Matugen](https://github.com/InioX/matugen)** by [InioX](https://github.com/InioX) — High-performance Material You (M3) color extraction tool that powers Awe's dynamic wallpaper theme engine.
+- **[Quickshell](https://quickshell.outfoxxed.me/)** by [Outfoxxed](https://github.com/outfoxxed) — Powerful, flexible QML-based Wayland desktop shell framework.
+- **[Lucide](https://lucide.dev/)** — Clean, modern, consistent vector icons used across the Settings Panel and Widget Pill.
+- **[Google Material Design 3](https://m3.material.io/)** — Expressive design guidelines, tonal color system, and typography.
+- **Linux Audio & Hardware Telemetry**:
+  - [PipeWire / WirePlumber](https://pipewire.org/) (`wpctl`) for audio management.
+  - [brightnessctl](https://github.com/Hummer12007/brightnessctl) for monitor backlight control.
+  - [playerctl](https://github.com/altdesktop/playerctl) for MPRIS media control.
+  - [wl-clipboard](https://github.com/bugaevc/wl-clipboard) for Wayland clipboard history.
+  - [lm_sensors](https://github.com/lm-sensors/lm-sensors) for CPU thermals.
+  - [awww](https://github.com/AbsolOrg/awww) & [swww](https://github.com/LGFae/swww) for Wayland wallpaper detection.
+

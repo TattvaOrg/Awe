@@ -24,3 +24,5 @@ VolumeBrightnessWidget 1.0 VolumeBrightnessWidget.qml
 WeatherWidget 1.0 WeatherWidget.qml
 WidgetManager 1.0 WidgetManager.qml
 WorldClockWidget 1.0 WorldClockWidget.qml
+SettingsWindow 1.0 settings.qml
+AweIcon 1.0 AweIcon.qml
