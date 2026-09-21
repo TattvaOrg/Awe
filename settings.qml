@@ -170,10 +170,19 @@ FloatingWindow {
         }
     }
 
+    property bool isInitialized: false
+
     Component.onCompleted: {
+        isInitialized = true
         loadSettingsProc.running = true
         checkShellProc.running = true
         checkAutostartProc.running = true
+    }
+
+    onVisibleChanged: {
+        if (isInitialized && !visible) {
+            Qt.quit()
+        }
     }
 
     function toggleWidget(widgetId) {

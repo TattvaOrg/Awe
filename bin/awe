@@ -125,11 +125,22 @@ def get_settings_gui_instances():
 
 
 def open_gui():
-    """Launch the rich settings GUI panel."""
+    """Launch the rich settings GUI panel. If an instance is already running, terminate it and open a fresh window."""
     gui_pids = get_settings_gui_instances()
     if gui_pids:
-        print(f"{YELLOW}Awe Settings is already open (PID: {gui_pids[0]}). Bringing to front...{RESET}")
-        return
+        for pid in gui_pids:
+            try:
+                os.kill(pid, 15)  # SIGTERM
+            except ProcessLookupError:
+                pass
+        time.sleep(0.15)
+        # Clean up any stubborn remaining processes
+        remaining = get_settings_gui_instances()
+        for pid in remaining:
+            try:
+                os.kill(pid, 9)  # SIGKILL
+            except ProcessLookupError:
+                pass
 
     settings_qml = os.path.join(AWE_DIR, "settings.qml")
     if not os.path.exists(settings_qml):
