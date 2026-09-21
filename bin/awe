@@ -1,0 +1,711 @@
+#!/usr/bin/env python3
+"""
+Awe - Material 3 Desktop Widgets Manager & CLI Companion
+"""
+
+import sys
+import os
+import json
+import subprocess
+import shutil
+import time
+
+# Resolve Awe directory
+SCRIPT_PATH = os.path.realpath(__file__)
+AWE_DIR = os.path.dirname(os.path.dirname(SCRIPT_PATH))
+SETTINGS_PATH = os.path.expanduser("~/.config/quickshell/widget_settings.json")
+AUTOSTART_DIR = os.path.expanduser("~/.config/autostart")
+AUTOSTART_FILE = os.path.join(AUTOSTART_DIR, "awe.desktop")
+DESKTOP_ENTRY_DIR = os.path.expanduser("~/.local/share/applications")
+DESKTOP_ENTRY_FILE = os.path.join(DESKTOP_ENTRY_DIR, "awe-settings.desktop")
+LOCAL_BIN_DIR = os.path.expanduser("~/.local/bin")
+LOCAL_BIN_FILE = os.path.join(LOCAL_BIN_DIR, "awe")
+
+# Theme metadata
+THEMES = [
+    ("system", "System Dynamic", "Material 3 palette extracted from wallpaper via Matugen"),
+    ("liquid_glass", "Liquid Glass", "Translucent frosted glass with specular gloss"),
+    ("transparent", "Transparent", "Minimal see-through floating aesthetic"),
+    ("material", "Material 3", "Original dark slate with Pixel cyan"),
+    ("cyberpunk", "Cyberpunk", "High-contrast neon glow on obsidian"),
+    ("nordic", "Nordic Frost", "Arctic cold blue & snow storm palette"),
+    ("oled", "OLED Black", "100% pitch-black with crisp white typography"),
+    ("warm_latte", "Warm Latte", "Cozy espresso & caramel with warm amber"),
+    ("tokyo_night", "Tokyo Night", "Midnight indigo-violet with lavender & cyan"),
+    ("evergreen_moss", "Evergreen", "Translucent forest green with phosphor telemetry"),
+    ("aurora_prism", "Aurora Prism", "Crystal glass with iridescent aurora reflections"),
+]
+
+WIDGETS = [
+    ("clock", "Clock", "Multi-style clock with cookie, nothing, android stacked, and digital"),
+    ("poster", "Poster", "Photo frame with organic shapes and animated GIF support"),
+    ("calendar", "Calendar", "Interactive monthly calendar with date selection grid"),
+    ("media", "Media Player", "MPRIS controller with fluid seekbar and soundwave bars"),
+    ("sysinfo", "System Info", "Overview of CPU load, memory utilization, and disk"),
+    ("battery", "Battery", "Battery charge level, AC status, and power metrics"),
+    ("weather", "Weather", "Live weather telemetry and forecast"),
+    ("quickcontrols", "Volume / Brightness", "PipeWire audio slider and display backlight control"),
+    ("network", "Network", "Wi-Fi SSID, bandwidth meters, activity sparklines, and privacy mask"),
+    ("notes", "Notes", "Quick notepad with inline editing and auto-saving"),
+    ("todo", "Tasks / Todo", "Checklist with completion tracking and progress bar"),
+    ("timer", "Pomodoro Timer", "Focus countdown, break timer, and stopwatch"),
+    ("thermal", "Thermals", "CPU package and core temperature sensors"),
+    ("quote", "Daily Quote", "Inspirational quotes with author tags and refresh shuffle"),
+    ("clipboard", "Clipboard", "Real-time clipboard history monitor using wl-paste/copy"),
+    ("crypto", "Crypto Ticker", "Market prices for BTC, ETH, SOL with 24h trend"),
+    ("worldclock", "World Clock", "Multi-city timezone hub with solar day/night indicators"),
+    ("git", "Git Dashboard", "Active branch, uncommitted diffs, and last commit"),
+    ("resourcewheel", "Resource Wheel", "4 concentric progress arcs for CPU, RAM, Disk, Thermals"),
+    ("visualizer", "Audio Visualizer", "Spectrum equalizer, fluid wave, and radial soundwave"),
+    ("habits", "Habit Tracker", "7-day streak tracker with daily check matrix"),
+    ("ping", "Network Ping", "Live latency monitor pinging Cloudflare, Google, GitHub"),
+    ("storagemap", "Storage Map", "Segmented disk storage visualizer showing partitions"),
+    ("calc", "Calculator", "Minimalist floating calculator with expression evaluation"),
+]
+
+# ANSI colors
+CYAN = "\033[96m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
+RED = "\033[91m"
+MAGENTA = "\033[95m"
+BOLD = "\033[1m"
+DIM = "\033[2m"
+RESET = "\033[0m"
+
+
+def print_banner():
+    print(f"{CYAN}{BOLD}─── AWE WIDGETS MANAGER ───{RESET}")
+
+
+def load_settings():
+    if os.path.exists(SETTINGS_PATH):
+        try:
+            with open(SETTINGS_PATH, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def save_settings(data):
+    os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
+    with open(SETTINGS_PATH, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def get_running_instances():
+    """Find running quickshell shell.qml instances."""
+    try:
+        out = subprocess.check_output(["pgrep", "-a", "quickshell"], text=True)
+        lines = out.strip().splitlines()
+        awe_pids = []
+        for line in lines:
+            if "shell.qml" in line and not "settings.qml" in line:
+                pid = line.split()[0]
+                awe_pids.append(int(pid))
+        return awe_pids
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return []
+
+
+def get_settings_gui_instances():
+    """Find running quickshell settings.qml instances."""
+    try:
+        out = subprocess.check_output(["pgrep", "-a", "quickshell"], text=True)
+        lines = out.strip().splitlines()
+        pids = []
+        for line in lines:
+            if "settings.qml" in line:
+                pid = line.split()[0]
+                pids.append(int(pid))
+        return pids
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return []
+
+
+def open_gui():
+    """Launch the rich settings GUI panel. If an instance is already running, terminate it and open a fresh window."""
+    gui_pids = get_settings_gui_instances()
+    if gui_pids:
+        for pid in gui_pids:
+            try:
+                os.kill(pid, 15)  # SIGTERM
+            except ProcessLookupError:
+                pass
+        time.sleep(0.15)
+        # Clean up any stubborn remaining processes
+        remaining = get_settings_gui_instances()
+        for pid in remaining:
+            try:
+                os.kill(pid, 9)  # SIGKILL
+            except ProcessLookupError:
+                pass
+
+    settings_qml = os.path.join(AWE_DIR, "settings.qml")
+    if not os.path.exists(settings_qml):
+        print(f"{RED}Error: settings.qml not found at {settings_qml}{RESET}")
+        sys.exit(1)
+
+    print(f"{CYAN}Opening Awe Settings UI...{RESET}")
+    # Spawn in background detached
+    subprocess.Popen(
+        ["quickshell", "-p", settings_qml],
+        cwd=AWE_DIR,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True
+    )
+
+
+def start_shell():
+    """Start the background Awe desktop widgets shell."""
+    pids = get_running_instances()
+    if pids:
+        print(f"{YELLOW}Awe desktop widgets are already running (PID: {pids[0]}).{RESET}")
+        return
+
+    shell_qml = os.path.join(AWE_DIR, "shell.qml")
+    if not os.path.exists(shell_qml):
+        print(f"{RED}Error: shell.qml not found at {shell_qml}{RESET}")
+        sys.exit(1)
+
+    print(f"{GREEN}Starting Awe desktop widgets...{RESET}")
+    subprocess.Popen(
+        ["quickshell", "-p", shell_qml, "-d"],
+        cwd=AWE_DIR,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True
+    )
+    time.sleep(0.5)
+    new_pids = get_running_instances()
+    if new_pids:
+        print(f"{GREEN}✓ Awe desktop widgets running successfully (PID: {new_pids[0]}){RESET}")
+    else:
+        print(f"{YELLOW}Spawned Awe daemon. Check quickshell logs if widgets do not appear.{RESET}")
+
+
+def stop_shell():
+    """Stop the running Awe desktop widgets shell."""
+    pids = get_running_instances()
+    if not pids:
+        print(f"{DIM}No running Awe desktop widgets instances found.{RESET}")
+        return
+
+    print(f"{YELLOW}Stopping Awe desktop widgets (PID: {', '.join(map(str, pids))})...{RESET}")
+    for pid in pids:
+        try:
+            os.kill(pid, 15)  # SIGTERM
+        except ProcessLookupError:
+            pass
+
+    time.sleep(0.5)
+    remaining = get_running_instances()
+    if remaining:
+        for pid in remaining:
+            try:
+                os.kill(pid, 9)  # SIGKILL
+            except ProcessLookupError:
+                pass
+    print(f"{GREEN}✓ Awe desktop widgets stopped.{RESET}")
+
+
+def restart_shell():
+    """Restart the Awe desktop widgets shell."""
+    print(f"{CYAN}Restarting Awe desktop widgets...{RESET}")
+    stop_shell()
+    time.sleep(0.3)
+    start_shell()
+
+
+def show_status():
+    """Show status of Awe widgets and settings."""
+    print_banner()
+    pids = get_running_instances()
+    if pids:
+        print(f"  Status:       {GREEN}{BOLD}RUNNING{RESET} (PID: {pids[0]})")
+    else:
+        print(f"  Status:       {RED}{BOLD}STOPPED{RESET}")
+
+    settings = load_settings()
+    manager = settings.get("manager", {})
+    theme = manager.get("theme", "liquid_glass")
+    visibility = manager.get("visibility", {})
+
+    # Match theme name
+    theme_name = next((name for tid, name, _ in THEMES if tid == theme), theme)
+    print(f"  Active Theme: {MAGENTA}{BOLD}{theme_name}{RESET} ({theme})")
+
+    # Autostart
+    autostart_active = os.path.exists(AUTOSTART_FILE)
+    print(f"  Autostart:    {GREEN}Enabled{RESET}" if autostart_active else f"  Autostart:    {DIM}Disabled{RESET}")
+
+    # Count active widgets
+    enabled_count = sum(1 for wid, _, _ in WIDGETS if visibility.get(wid, True))
+    print(f"  Widgets:      {CYAN}{enabled_count} / {len(WIDGETS)}{RESET} enabled\n")
+
+    # Brief list
+    print(f"  {BOLD}Active Widgets:{RESET}")
+    for wid, name, _ in WIDGETS:
+        is_on = visibility.get(wid, True)
+        symbol = f"{GREEN}● ON {RESET}" if is_on else f"{DIM}○ OFF{RESET}"
+        print(f"    {symbol} {name:<22} {DIM}({wid}){RESET}")
+
+
+def list_widgets():
+    """List all widgets with their enabled/disabled state."""
+    settings = load_settings()
+    visibility = settings.get("manager", {}).get("visibility", {})
+
+    print(f"\n{BOLD}AVAILABLE AWE WIDGETS ({len(WIDGETS)} total):{RESET}\n")
+    for wid, name, desc in WIDGETS:
+        is_on = visibility.get(wid, True)
+        status_badge = f"{GREEN}[ON]{RESET}" if is_on else f"{DIM}[OFF]{RESET}"
+        print(f"  {status_badge} {BOLD}{name:<20}{RESET} {DIM}{wid:<15}{RESET} {desc}")
+    print()
+
+
+def toggle_widget(wid):
+    """Toggle a widget by its ID."""
+    known_ids = [w[0] for w in WIDGETS]
+    wid_lower = wid.lower()
+    if wid_lower not in known_ids:
+        print(f"{RED}Error: Unknown widget '{wid}'. Run 'awe list' to see available widgets.{RESET}")
+        sys.exit(1)
+
+    settings = load_settings()
+    manager = settings.setdefault("manager", {})
+    visibility = manager.setdefault("visibility", {})
+
+    current_state = visibility.get(wid_lower, True)
+    new_state = not current_state
+    visibility[wid_lower] = new_state
+    save_settings(settings)
+
+    state_str = f"{GREEN}ENABLED{RESET}" if new_state else f"{YELLOW}DISABLED{RESET}"
+    widget_name = next(name for w, name, _ in WIDGETS if w == wid_lower)
+    print(f"✓ Widget {BOLD}{widget_name}{RESET} ({wid_lower}) is now {state_str}.")
+
+
+def set_widget_state(wid, state: bool):
+    """Set widget state explicitly."""
+    known_ids = [w[0] for w in WIDGETS]
+    wid_lower = wid.lower()
+    if wid_lower not in known_ids:
+        print(f"{RED}Error: Unknown widget '{wid}'. Run 'awe list' to see available widgets.{RESET}")
+        sys.exit(1)
+
+    settings = load_settings()
+    manager = settings.setdefault("manager", {})
+    visibility = manager.setdefault("visibility", {})
+    visibility[wid_lower] = state
+    save_settings(settings)
+
+    state_str = f"{GREEN}ENABLED{RESET}" if state else f"{YELLOW}DISABLED{RESET}"
+    widget_name = next(name for w, name, _ in WIDGETS if w == wid_lower)
+    print(f"✓ Widget {BOLD}{widget_name}{RESET} ({wid_lower}) is now {state_str}.")
+
+
+def find_active_wallpaper():
+    """Detect currently active wallpaper from awww, swww, or common paths."""
+    # 1. awww query
+    try:
+        out = subprocess.check_output(["awww", "query"], text=True, stderr=subprocess.DEVNULL)
+        for line in out.splitlines():
+            if "image:" in line:
+                path = line.split("image:", 1)[1].strip()
+                if os.path.exists(path):
+                    return path
+    except Exception:
+        pass
+
+    # 2. swww query
+    try:
+        out = subprocess.check_output(["swww", "query"], text=True, stderr=subprocess.DEVNULL)
+        for line in out.splitlines():
+            if "image:" in line:
+                path = line.split("image:", 1)[1].strip()
+                if os.path.exists(path):
+                    return path
+    except Exception:
+        pass
+
+    # 3. Known cache and config locations
+    candidates = [
+        os.path.expanduser("~/.cache/caffyne-shell/wallpaper"),
+        os.path.expanduser("~/.current_wallpaper"),
+        os.path.expanduser("~/.config/agility-shell/wallpapers/5.png"),
+        os.path.expanduser("~/Pictures/Wallpapers"),
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+        elif os.path.isdir(c):
+            for f in os.listdir(c):
+                if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                    return os.path.join(c, f)
+    return None
+
+
+def sync_wallpaper_colors(image_path=None, silent=False):
+    """Extract Material 3 palette from wallpaper using matugen and save to settings."""
+    wallpaper = image_path or find_active_wallpaper()
+    if not wallpaper or not os.path.exists(wallpaper):
+        if not silent:
+            print(f"{RED}Error: Could not locate active wallpaper image.{RESET}")
+            print(f"Specify image manually: {CYAN}awe wallpaper-sync /path/to/wallpaper.png{RESET}")
+        return None
+
+    matugen_bin = shutil.which("matugen")
+    if not matugen_bin:
+        if not silent:
+            print(f"{YELLOW}Warning: 'matugen' binary not found in PATH.{RESET}")
+            print("Install matugen to enable automatic Material 3 wallpaper color extraction.")
+        return None
+
+    if not silent:
+        print(f"{CYAN}Extracting Material 3 palette from {BOLD}{wallpaper}{RESET}{CYAN} via Matugen...{RESET}")
+
+    try:
+        cmd = [matugen_bin, "image", wallpaper, "--source-color-index", "0", "-m", "dark", "-j", "hex"]
+        out = subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL)
+        data = json.loads(out)
+        colors = data.get("colors", {})
+
+        def c(name, fallback="#ffffff"):
+            node = colors.get(name, {})
+            if isinstance(node, dict):
+                return node.get("dark", {}).get("color", node.get("default", {}).get("color", fallback))
+            return fallback
+
+        primary = c("primary", "#FFB77E")
+        col_bg = c("surface_container_low", "#19120C")
+        col_bg_tile = c("surface_container", "#261E18")
+        col_pill_bg = c("surface_container_high", "#312822")
+        col_accent = primary
+        col_accent_green = c("tertiary", "#C5CB96")
+        col_accent_warm = c("error", "#FFB4AB")
+        col_accent_warning = c("secondary", "#E3C0A6")
+        col_text_primary = c("on_surface", "#ECE0DA")
+        col_text_secondary = c("on_surface_variant", "#9E8D82")
+
+        palette = {
+            "wallpaper": wallpaper,
+            "colBg": "#D9" + col_bg.lstrip("#"),
+            "colBgTile": "#E6" + col_bg_tile.lstrip("#"),
+            "colPillBg": "#F0" + col_pill_bg.lstrip("#"),
+            "colAccent": col_accent,
+            "colAccentGreen": col_accent_green,
+            "colAccentWarm": col_accent_warm,
+            "colAccentWarning": col_accent_warning,
+            "colTextPrimary": col_text_primary,
+            "colTextSecondary": col_text_secondary,
+            "borderColor": "#33" + col_accent.lstrip("#"),
+            "glassGloss": "#18" + col_accent.lstrip("#")
+        }
+
+        settings = load_settings()
+        manager = settings.setdefault("manager", {})
+        manager["systemColors"] = palette
+        save_settings(settings)
+
+        if not silent:
+            print(f"{GREEN}✓ Successfully generated system dynamic theme palette:{RESET}")
+            print(f"  • Wallpaper:   {CYAN}{wallpaper}{RESET}")
+            print(f"  • Primary:     {BOLD}{col_accent}{RESET}")
+            print(f"  • Background:  {palette['colBg']}")
+            print(f"  • Secondary:   {col_accent_warning}")
+            print(f"  • Tertiary:    {col_accent_green}")
+        return palette
+
+    except Exception as e:
+        if not silent:
+            print(f"{RED}Error running matugen: {e}{RESET}")
+        return None
+
+
+def handle_theme(theme_arg=None):
+    """List or set theme."""
+    settings = load_settings()
+    manager = settings.setdefault("manager", {})
+    current = manager.get("theme", "liquid_glass")
+
+    if not theme_arg:
+        print(f"\n{BOLD}AVAILABLE AWE THEMES:{RESET}\n")
+        for tid, name, desc in THEMES:
+            marker = f"{CYAN}➜ {BOLD}" if tid == current else "  "
+            current_tag = f" {GREEN}(active){RESET}" if tid == current else ""
+            print(f"{marker}{name:<18}{RESET}{current_tag}\n    ID: {MAGENTA}{tid}{RESET}\n    {DIM}{desc}{RESET}\n")
+        print(f"Use {CYAN}awe theme <id>{RESET} to switch theme.\n")
+        return
+
+    target = theme_arg.lower().strip()
+    valid_ids = [t[0] for t in THEMES]
+    if target not in valid_ids:
+        print(f"{RED}Error: Unknown theme '{theme_arg}'. Valid themes:{RESET}")
+        for tid, name, _ in THEMES:
+            print(f"  • {tid} ({name})")
+        sys.exit(1)
+
+    if target == "system":
+        sync_wallpaper_colors()
+
+    manager["theme"] = target
+    save_settings(settings)
+    target_name = next(name for tid, name, _ in THEMES if tid == target)
+    print(f"✓ Active theme switched to {MAGENTA}{BOLD}{target_name}{RESET} ({target})")
+
+
+def set_scale(scale_val):
+    """Set global scale for all widgets."""
+    try:
+        val = float(scale_val)
+        if val < 0.3 or val > 2.5:
+            print(f"{RED}Scale must be between 0.3 and 2.5 (e.g., 0.85).{RESET}")
+            sys.exit(1)
+    except ValueError:
+        print(f"{RED}Error: Invalid scale number '{scale_val}'.{RESET}")
+        sys.exit(1)
+
+    settings = load_settings()
+    for wid, _, _ in WIDGETS:
+        if wid in settings and isinstance(settings[wid], dict):
+            settings[wid]["scale"] = round(val, 2)
+    save_settings(settings)
+    print(f"✓ Global scale factor set to {BOLD}{val:.2f}x{RESET} for all widgets.")
+
+
+def handle_autostart(action="toggle"):
+    """Enable, disable, or toggle autostart desktop entry."""
+    os.makedirs(AUTOSTART_DIR, exist_ok=True)
+    is_active = os.path.exists(AUTOSTART_FILE)
+
+    if action == "status":
+        print(f"Autostart is currently {'ENABLED' if is_active else 'DISABLED'}")
+        return
+
+    should_enable = not is_active if action == "toggle" else (action in ("on", "enable", "true", "1"))
+
+    if should_enable:
+        desktop_content = f"""[Desktop Entry]
+Type=Application
+Name=Awe Desktop Widgets
+Comment=Material 3 Wayland Desktop Widgets
+Exec={LOCAL_BIN_FILE} start
+Icon=preferences-desktop-theme
+Terminal=false
+Categories=Utility;DesktopSettings;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
+"""
+        with open(AUTOSTART_FILE, "w") as f:
+            f.write(desktop_content)
+        print(f"{GREEN}✓ Awe autostart enabled on login (~/.config/autostart/awe.desktop){RESET}")
+    else:
+        if os.path.exists(AUTOSTART_FILE):
+            os.remove(AUTOSTART_FILE)
+        print(f"{YELLOW}✓ Awe autostart disabled.{RESET}")
+
+
+def handle_pill_position(pos=None):
+    valid_positions = ["top_center", "top_left", "top_right", "bottom_center", "bottom_left", "bottom_right"]
+    settings = load_settings()
+    manager = settings.setdefault("manager", {})
+    if not pos:
+        current = manager.get("position", "top_center")
+        print(f"\nCurrent Awe pill position: {BOLD}{current}{RESET}\nValid options: {', '.join(valid_positions)}\n")
+        return
+    pos_clean = pos.lower().replace("-", "_")
+    if pos_clean not in valid_positions:
+        print(f"{RED}Error: Invalid position '{pos}'. Valid: {', '.join(valid_positions)}{RESET}")
+        sys.exit(1)
+    manager["position"] = pos_clean
+    save_settings(settings)
+    print(f"✓ Awe pill position updated to: {CYAN}{BOLD}{pos_clean}{RESET}")
+
+
+def handle_pill_text(text=None):
+    settings = load_settings()
+    manager = settings.setdefault("manager", {})
+    if text is None:
+        current = manager.get("pillText", "Awe Widgets")
+        print(f"\nCurrent Awe pill label text: {BOLD}{current}{RESET}\n")
+        return
+    manager["pillText"] = text
+    save_settings(settings)
+    print(f"✓ Awe pill label text updated to: {CYAN}{BOLD}{text}{RESET}")
+
+
+def handle_pill_visibility(action=None):
+    settings = load_settings()
+    manager = settings.setdefault("manager", {})
+    current = manager.get("showPill", True)
+    if action is None or action == "toggle":
+        new_val = not current
+    elif action in ("on", "show", "enable", "true", "1"):
+        new_val = True
+    elif action in ("off", "hide", "disable", "false", "0"):
+        new_val = False
+    else:
+        new_val = not current
+    manager["showPill"] = new_val
+    save_settings(settings)
+    state = f"{GREEN}VISIBLE{RESET}" if new_val else f"{YELLOW}HIDDEN{RESET}"
+    print(f"✓ Awe desktop pill is now {state}")
+
+
+def install():
+    """Install awe binary symlink to ~/.local/bin/awe and desktop entry."""
+    os.makedirs(LOCAL_BIN_DIR, exist_ok=True)
+    os.makedirs(DESKTOP_ENTRY_DIR, exist_ok=True)
+
+    # Symlink awe to ~/.local/bin/awe
+    if os.path.islink(LOCAL_BIN_FILE) or os.path.exists(LOCAL_BIN_FILE):
+        try:
+            os.remove(LOCAL_BIN_FILE)
+        except Exception:
+            pass
+
+    os.symlink(SCRIPT_PATH, LOCAL_BIN_FILE)
+    os.chmod(SCRIPT_PATH, 0o755)
+    print(f"{GREEN}✓ Symlinked {LOCAL_BIN_FILE} -> {SCRIPT_PATH}{RESET}")
+
+    # Create application launcher entry for Settings UI
+    desktop_content = f"""[Desktop Entry]
+Type=Application
+Name=Awe Settings
+Comment=Configure Awe Desktop Widgets & Themes
+Exec={LOCAL_BIN_FILE} gui
+Icon=preferences-desktop-theme
+Terminal=false
+Categories=Utility;Settings;DesktopSettings;
+Keywords=widgets;desktop;material;quickshell;awe;
+"""
+    with open(DESKTOP_ENTRY_FILE, "w") as f:
+        f.write(desktop_content)
+    print(f"{GREEN}✓ Created desktop application entry at {DESKTOP_ENTRY_FILE}{RESET}")
+    print(f"{CYAN}{BOLD}Awe CLI is fully installed! You can now run `awe` in any terminal.{RESET}")
+
+
+def uninstall():
+    """Remove awe symlink and desktop entry."""
+    if os.path.exists(LOCAL_BIN_FILE):
+        os.remove(LOCAL_BIN_FILE)
+        print(f"{YELLOW}✓ Removed {LOCAL_BIN_FILE}{RESET}")
+    if os.path.exists(DESKTOP_ENTRY_FILE):
+        os.remove(DESKTOP_ENTRY_FILE)
+        print(f"{YELLOW}✓ Removed {DESKTOP_ENTRY_FILE}{RESET}")
+    if os.path.exists(AUTOSTART_FILE):
+        os.remove(AUTOSTART_FILE)
+        print(f"{YELLOW}✓ Removed {AUTOSTART_FILE}{RESET}")
+    print(f"{GREEN}Awe uninstalled successfully.{RESET}")
+
+
+def show_help():
+    print_banner()
+    print(f"""
+{BOLD}USAGE:{RESET}
+  {CYAN}awe{RESET}                     Open the rich Settings UI window
+  {CYAN}awe gui{RESET}                 Open the rich Settings UI window
+  {CYAN}awe start{RESET}               Start the Awe desktop widgets in the background
+  {CYAN}awe stop{RESET}                Stop the running Awe desktop widgets
+  {CYAN}awe restart{RESET}             Restart the Awe desktop widgets
+  {CYAN}awe status{RESET}              Show running state, active theme, and widgets
+  {CYAN}awe theme [name]{RESET}        View or switch the active theme
+  {CYAN}awe wallpaper-sync [path]{RESET} Extract Material 3 colors from wallpaper via Matugen
+  {CYAN}awe list{RESET}                List all 24 widgets and their status
+  {CYAN}awe toggle <widget>{RESET}     Toggle a widget on or off
+  {CYAN}awe enable <widget>{RESET}     Enable a widget
+  {CYAN}awe disable <widget>{RESET}    Disable a widget
+  {CYAN}awe pill [pos]{RESET}          Set pill position (top_center, bottom_center, etc.)
+  {CYAN}awe pill-text [text]{RESET}    Set custom label text on desktop pill
+  {CYAN}awe pill-toggle{RESET}         Show/hide desktop toggle pill
+  {CYAN}awe scale <value>{RESET}       Set global scale factor (0.5 to 1.5)
+  {CYAN}awe autostart [on|off]{RESET} Manage autostart on desktop login
+  {CYAN}awe install{RESET}             Install `awe` command to ~/.local/bin/awe
+  {CYAN}awe uninstall{RESET}           Remove `awe` command from ~/.local/bin/awe
+  {CYAN}awe help{RESET}                Show this help message
+
+{BOLD}EXAMPLES:{RESET}
+  awe                            {DIM}# Opens the rich black settings panel{RESET}
+  awe theme cyberpunk            {DIM}# Switch theme to Cyberpunk instantly{RESET}
+  awe pill bottom_center         {DIM}# Move toggle notch to bottom center{RESET}
+  awe pill-text "✦ Widgets"      {DIM}# Set custom text on desktop pill{RESET}
+  awe pill-toggle                {DIM}# Hide or show the desktop pill{RESET}
+  awe toggle clock               {DIM}# Toggle clock widget on/off{RESET}
+  awe restart                    {DIM}# Restart Awe desktop widgets{RESET}
+""")
+
+
+def main():
+    if len(sys.argv) <= 1:
+        open_gui()
+        return
+
+    cmd = sys.argv[1].lower()
+
+    if cmd in ("gui", "settings", "panel", "ui"):
+        open_gui()
+    elif cmd in ("start", "up"):
+        start_shell()
+    elif cmd in ("stop", "down", "kill"):
+        stop_shell()
+    elif cmd in ("restart", "reload"):
+        restart_shell()
+    elif cmd in ("status", "info"):
+        show_status()
+    elif cmd in ("theme", "themes"):
+        arg = sys.argv[2] if len(sys.argv) > 2 else None
+        handle_theme(arg)
+    elif cmd in ("wallpaper-sync", "wallpaper", "matugen", "sync-wallpaper"):
+        arg = sys.argv[2] if len(sys.argv) > 2 else None
+        sync_wallpaper_colors(arg)
+    elif cmd in ("list", "widgets", "ls"):
+        list_widgets()
+    elif cmd == "toggle":
+        if len(sys.argv) < 3:
+            print(f"{RED}Usage: awe toggle <widget_id>{RESET}")
+            sys.exit(1)
+        toggle_widget(sys.argv[2])
+    elif cmd in ("enable", "show"):
+        if len(sys.argv) < 3:
+            print(f"{RED}Usage: awe enable <widget_id>{RESET}")
+            sys.exit(1)
+        set_widget_state(sys.argv[2], True)
+    elif cmd in ("disable", "hide"):
+        if len(sys.argv) < 3:
+            print(f"{RED}Usage: awe disable <widget_id>{RESET}")
+            sys.exit(1)
+        set_widget_state(sys.argv[2], False)
+    elif cmd in ("pill", "notch", "position"):
+        arg = sys.argv[2] if len(sys.argv) > 2 else None
+        handle_pill_position(arg)
+    elif cmd in ("pill-text", "label"):
+        arg = " ".join(sys.argv[2:]) if len(sys.argv) > 2 else None
+        handle_pill_text(arg)
+    elif cmd in ("pill-toggle", "pill-show", "hide-pill", "show-pill"):
+        arg = sys.argv[2] if len(sys.argv) > 2 else "toggle"
+        handle_pill_visibility(arg)
+    elif cmd == "scale":
+        if len(sys.argv) < 3:
+            print(f"{RED}Usage: awe scale <value> (e.g., 0.85){RESET}")
+            sys.exit(1)
+        set_scale(sys.argv[2])
+    elif cmd == "autostart":
+        arg = sys.argv[2] if len(sys.argv) > 2 else "toggle"
+        handle_autostart(arg)
+    elif cmd == "install":
+        install()
+    elif cmd == "uninstall":
+        uninstall()
+    elif cmd in ("help", "-h", "--help"):
+        show_help()
+    else:
+        print(f"{RED}Unknown command: '{cmd}'.{RESET}")
+        show_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

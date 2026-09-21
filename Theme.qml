@@ -12,20 +12,22 @@ Item {
 
     // Theme metadata list for the UI picker
     readonly property var themes: [
-        { id: "liquid_glass",    name: "Liquid Glass", icon: "🫧", desc: "Translucent frosted glass with specular gloss" },
-        { id: "transparent",     name: "Transparent",  icon: "🪟", desc: "Minimal see-through floating aesthetic" },
-        { id: "material",        name: "Material 3",   icon: "🎨", desc: "Original dark slate with Pixel cyan" },
-        { id: "cyberpunk",       name: "Cyberpunk",    icon: "⚡", desc: "High-contrast neon glow on obsidian" },
-        { id: "nordic",          name: "Nordic Frost", icon: "❄️", desc: "Arctic cold blue & snow storm palette" },
-        { id: "oled",            name: "OLED Black",   icon: "🖤", desc: "100% pitch-black with crisp white typography" },
-        { id: "warm_latte",      name: "Warm Latte",   icon: "☕", desc: "Cozy espresso & caramel with warm amber" },
-        { id: "tokyo_night",     name: "Tokyo Night",  icon: "🌸", desc: "Midnight indigo-violet with lavender & cyan" },
-        { id: "evergreen_moss",  name: "Evergreen",    icon: "🌲", desc: "Translucent forest green with phosphor telemetry" },
-        { id: "aurora_prism",    name: "Aurora Prism", icon: "💎", desc: "Crystal glass with iridescent aurora reflections" }
+        { id: "system",          name: "System Dynamic", icon: "crosshair", desc: "Material 3 palette extracted from wallpaper via Matugen" },
+        { id: "liquid_glass",    name: "Liquid Glass", icon: "droplet",   desc: "Translucent frosted glass with specular gloss" },
+        { id: "transparent",     name: "Transparent",  icon: "layout",    desc: "Minimal see-through floating aesthetic" },
+        { id: "material",        name: "Material 3",   icon: "palette",   desc: "Original dark slate with Pixel cyan" },
+        { id: "cyberpunk",       name: "Cyberpunk",    icon: "zap",       desc: "High-contrast neon glow on obsidian" },
+        { id: "nordic",          name: "Nordic Frost", icon: "snowflake", desc: "Arctic cold blue & snow storm palette" },
+        { id: "oled",            name: "OLED Black",   icon: "moon",      desc: "100% pitch-black with crisp white typography" },
+        { id: "warm_latte",      name: "Warm Latte",   icon: "coffee",    desc: "Cozy espresso & caramel with warm amber" },
+        { id: "tokyo_night",     name: "Tokyo Night",  icon: "sparkles",  desc: "Midnight indigo-violet with lavender & cyan" },
+        { id: "evergreen_moss",  name: "Evergreen",    icon: "feather",   desc: "Translucent forest green with phosphor telemetry" },
+        { id: "aurora_prism",    name: "Aurora Prism", icon: "gem",       desc: "Crystal glass with iridescent aurora reflections" }
     ]
 
     // Convenience booleans
-    readonly property bool isGlass: currentTheme === "liquid_glass" || currentTheme === "evergreen_moss" || currentTheme === "aurora_prism"
+    readonly property bool isSystem: currentTheme === "system"
+    readonly property bool isGlass: currentTheme === "liquid_glass" || currentTheme === "evergreen_moss" || currentTheme === "aurora_prism" || currentTheme === "system"
     readonly property bool isTransparent: currentTheme === "transparent"
     readonly property bool isMaterial: currentTheme === "material"
     readonly property bool isCyberpunk: currentTheme === "cyberpunk"
@@ -36,9 +38,27 @@ Item {
     readonly property bool isEvergreen: currentTheme === "evergreen_moss"
     readonly property bool isAurora: currentTheme === "aurora_prism"
 
+    // ─── Dynamic Wallpaper Matugen Palette ───
+    property var systemColors: ({
+        colBg: "#D9221A14",
+        colBgTile: "#E6261E18",
+        colPillBg: "#F0312822",
+        colAccent: "#FFB77E",
+        colAccentGreen: "#C5CB96",
+        colAccentWarm: "#FFB4AB",
+        colAccentWarning: "#E3C0A6",
+        colTextPrimary: "#EFDFD6",
+        colTextSecondary: "#D6C3B7",
+        borderColor: "#33FFB77E",
+        glassGloss: "#18FFB77E"
+    })
+
     // ─── Dynamic Palette Properties ───
     // Primary Panel Background
     readonly property color colBg: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.colBg) ? root.systemColors.colBg : "#D9221A14"
+        }
         switch (currentTheme) {
             case "liquid_glass":   return "#80141B24"
             case "transparent":    return "#260B0E14"
@@ -56,6 +76,9 @@ Item {
 
     // Inner Sub-Card / Tile Background
     readonly property color colBgTile: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.colBgTile) ? root.systemColors.colBgTile : "#E6261E18"
+        }
         switch (currentTheme) {
             case "liquid_glass":   return "#8C1B2430"
             case "transparent":    return "#33141C26"
@@ -73,6 +96,9 @@ Item {
 
     // Pill / Button / Badge Background
     readonly property color colPillBg: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.colPillBg) ? root.systemColors.colPillBg : "#F0312822"
+        }
         switch (currentTheme) {
             case "liquid_glass":   return "#99263445"
             case "transparent":    return "#4D212C3B"
@@ -90,6 +116,9 @@ Item {
 
     // Main Accent Color
     readonly property color colAccent: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.colAccent) ? root.systemColors.colAccent : "#FFB77E"
+        }
         switch (currentTheme) {
             case "liquid_glass":   return "#7DD3FC"
             case "transparent":    return "#38BDF8"
@@ -107,6 +136,9 @@ Item {
 
     // Secondary / Positive Accent (Green)
     readonly property color colAccentGreen: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.colAccentGreen) ? root.systemColors.colAccentGreen : "#C5CB96"
+        }
         switch (currentTheme) {
             case "liquid_glass":   return "#34D399"
             case "transparent":    return "#4ADE80"
@@ -124,6 +156,9 @@ Item {
 
     // Warm / Alert Accent
     readonly property color colAccentWarm: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.colAccentWarm) ? root.systemColors.colAccentWarm : "#FFB4AB"
+        }
         switch (currentTheme) {
             case "liquid_glass":   return "#FB7185"
             case "transparent":    return "#F43F5E"
@@ -141,6 +176,9 @@ Item {
 
     // Warning / Yellow Accent
     readonly property color colAccentWarning: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.colAccentWarning) ? root.systemColors.colAccentWarning : "#E3C0A6"
+        }
         switch (currentTheme) {
             case "liquid_glass":   return "#FCD34D"
             case "transparent":    return "#FBBF24"
@@ -158,6 +196,9 @@ Item {
 
     // Primary Text Color
     readonly property color colTextPrimary: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.colTextPrimary) ? root.systemColors.colTextPrimary : "#EFDFD6"
+        }
         switch (currentTheme) {
             case "nordic":         return "#ECEFF4"
             case "warm_latte":     return "#FDF8F5"
@@ -170,6 +211,9 @@ Item {
 
     // Secondary Text Color
     readonly property color colTextSecondary: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.colTextSecondary) ? root.systemColors.colTextSecondary : "#D6C3B7"
+        }
         switch (currentTheme) {
             case "liquid_glass":   return "#B0C4D4"
             case "transparent":    return "#94A3B8"
@@ -187,6 +231,9 @@ Item {
 
     // Border Color
     readonly property color borderColor: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.borderColor) ? root.systemColors.borderColor : "#33FFB77E"
+        }
         switch (currentTheme) {
             case "liquid_glass":   return "#40FFFFFF"
             case "transparent":    return "#1AFFFFFF"
@@ -204,6 +251,7 @@ Item {
 
     // Border Width
     readonly property real borderWidth: {
+        if (currentTheme === "system") return 1.2
         switch (currentTheme) {
             case "liquid_glass":   return 1.5
             case "cyberpunk":      return 1.5
@@ -217,6 +265,9 @@ Item {
 
     // Specular Glass Top Highlight Gradient
     readonly property color glassGloss: {
+        if (currentTheme === "system") {
+            return (root.systemColors && root.systemColors.glassGloss) ? root.systemColors.glassGloss : "#18FFB77E"
+        }
         switch (currentTheme) {
             case "liquid_glass":   return "#2EFFFFFF"
             case "aurora_prism":   return "#3DF472B6"
@@ -237,8 +288,13 @@ Item {
             onStreamFinished: {
                 try {
                     var data = JSON.parse(text)
-                    if (data.manager && data.manager.theme) {
-                        root.currentTheme = data.manager.theme
+                    if (data.manager) {
+                        if (data.manager.theme) {
+                            root.currentTheme = data.manager.theme
+                        }
+                        if (data.manager.systemColors) {
+                            root.systemColors = Object.assign({}, root.systemColors, data.manager.systemColors)
+                        }
                     }
                 } catch (e) {}
             }
@@ -252,9 +308,14 @@ Item {
 
     function setTheme(newTheme) {
         root.currentTheme = newTheme
-        var script = "python3 -c 'import json, os; p=os.path.expanduser(\"~/.config/quickshell/widget_settings.json\"); d=json.load(open(p)) if os.path.exists(p) else {}; d.setdefault(\"manager\", {})[\"theme\"]=\"" + newTheme + "\"; open(p,\"w\").write(json.dumps(d,indent=2))'"
-        saveSettingsProc.command = ["sh", "-c", script]
-        saveSettingsProc.running = true
+        if (newTheme === "system") {
+            saveSettingsProc.command = ["sh", "-c", "awe theme system"]
+            saveSettingsProc.running = true
+        } else {
+            var script = "python3 -c 'import json, os; p=os.path.expanduser(\"~/.config/quickshell/widget_settings.json\"); d=json.load(open(p)) if os.path.exists(p) else {}; d.setdefault(\"manager\", {})[\"theme\"]=\"" + newTheme + "\"; open(p,\"w\").write(json.dumps(d,indent=2))'"
+            saveSettingsProc.command = ["sh", "-c", script]
+            saveSettingsProc.running = true
+        }
     }
 
     // Watcher to keep theme in sync across multiple monitors or processes
