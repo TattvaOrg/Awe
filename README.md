@@ -4,6 +4,8 @@
 
 - Each widget is an independent QML component that can be moved, scaled, customized, and toggled across your desktop with persistent configuration.
 
+https://github.com/user-attachments/assets/30c044ea-ceda-4a61-8733-acd02f01f31c
+
 ## All Widgets
 <img width="1361" height="761" alt="all" src="https://github.com/user-attachments/assets/0337ce98-14df-4df8-b627-9ef1f8767197" />
 
